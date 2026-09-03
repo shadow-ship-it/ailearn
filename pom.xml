@@ -29,6 +29,8 @@
     <properties>
         <java.version>21</java.version>
         <spring-ai.version>2.0.1</spring-ai.version>
+        <minio.version>9.0.3</minio.version>
+        <okhttp.version>5.3.2</okhttp.version>
     </properties>
     <dependencies>
         <dependency>
@@ -36,8 +38,27 @@
             <artifactId>spring-boot-starter-webmvc</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-starter-model-openai</artifactId>
+            <groupId>io.minio</groupId>
+            <artifactId>minio</artifactId>
+            <version>${minio.version}</version>
+            <exclusions>
+                <!--
+                  OkHttp 5.x 使用 Kotlin Multiplatform 发布：
+                  com.squareup.okhttp3:okhttp 的 jar 只有 767 字节（不含任何 class），
+                  真正的实现在 okhttp-jvm 中。Gradle 通过 .module 元数据选择 jvm 变体，
+                  Maven 不读取 .module，会拉到空壳导致 okhttp3.HttpUrl / MediaType 找不到。
+                -->
+                <exclusion>
+                    <groupId>com.squareup.okhttp3</groupId>
+                    <artifactId>okhttp</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!-- okhttp 的 JVM 实现，传递依赖 okio-jvm 与 kotlin-stdlib -->
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp-jvm</artifactId>
+            <version>${okhttp.version}</version>
         </dependency>
 
         <dependency>

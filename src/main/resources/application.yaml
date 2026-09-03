@@ -1,3 +1,19 @@
 spring:
   application:
     name: rag_ai
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 50MB
+      max-request-size: 100MB
+
+minio:
+  # MinIO 服务地址
+  endpoint: http://localhost:9000
+  access-key: admin
+  secret-key: Admin@123456
+  # 文档存储桶（不存在时自动创建）
+  bucket: documents
+  region: us-east-1
+server:
+  port: 8082
