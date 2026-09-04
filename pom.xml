@@ -31,6 +31,9 @@
         <spring-ai.version>2.0.1</spring-ai.version>
         <minio.version>9.0.3</minio.version>
         <okhttp.version>5.3.2</okhttp.version>
+        <!-- 结构化解析依赖，Spring Boot 4 的 BOM 不再管理，需显式指定版本 -->
+        <poi.version>5.4.1</poi.version>
+        <pdfbox.version>3.0.3</pdfbox.version>
     </properties>
     <dependencies>
         <dependency>
@@ -70,6 +73,34 @@
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-tika-document-reader</artifactId>
+        </dependency>
+
+        <!-- 结构化解析：PDF 走 PDFBox，Word / Excel 走 Apache POI -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>${pdfbox.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi</artifactId>
+            <version>${poi.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>${poi.version}</version>
+        </dependency>
+        <!-- 旧版 .doc（HWPF）支持 -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-scratchpad</artifactId>
+            <version>${poi.version}</version>
+        </dependency>
+        <!-- 把 POI 使用的 log4j-api 日志桥接到 Slf4j，避免无实现告警 -->
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-to-slf4j</artifactId>
         </dependency>
 
         <!-- MongoDB：存储上传文档的元数据与提取内容 -->

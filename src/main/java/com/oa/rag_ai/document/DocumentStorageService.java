@@ -1,9 +1,10 @@
 package com.oa.rag_ai.document;
 
 import com.oa.rag_ai.config.MinioProperties;
-import com.oa.rag_ai.document.DocumentContentExtractor;
 import com.oa.rag_ai.document.mongo.DocumentRecord;
 import com.oa.rag_ai.document.mongo.DocumentRecordRepository;
+import com.oa.rag_ai.document.parser.BlockType;
+import com.oa.rag_ai.document.parser.DocumentStructure;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
 import io.minio.ObjectWriteResponse;
@@ -43,18 +44,18 @@ public class DocumentStorageService {
     private final MinioProperties properties;
     private final Executor documentParseExecutor;
     private final DocumentRecordRepository documentRecordRepository;
-    private final DocumentContentExtractor contentExtractor;
+    private final DocumentStructureExtractor structureExtractor;
 
     public DocumentStorageService(MinioClient minioClient,
                                   MinioProperties properties,
                                   @Qualifier("documentParseExecutor") Executor documentParseExecutor,
                                   DocumentRecordRepository documentRecordRepository,
-                                  DocumentContentExtractor contentExtractor) {
+                                  DocumentStructureExtractor structureExtractor) {
         this.minioClient = minioClient;
         this.properties = properties;
         this.documentParseExecutor = documentParseExecutor;
         this.documentRecordRepository = documentRecordRepository;
-        this.contentExtractor = contentExtractor;
+        this.structureExtractor = structureExtractor;
     }
 
     /**
@@ -84,7 +85,7 @@ public class DocumentStorageService {
             throw new DocumentStorageException("上传文档失败：" + e.getMessage(), e);
         }
 
-        // 上传成功后异步解析并入库，不阻塞上传响应
+        // 上传成功后异步按格式结构化解析并入库，不阻塞上传响应
         persistDocumentAsync(file, originalFilename, objectName, type.getContentType());
 
         return new DocumentUploadResult(objectName, properties.getBucket(), originalFilename,
@@ -92,7 +93,7 @@ public class DocumentStorageService {
     }
 
     /**
-     * 在独立线程中解析文档内容并写入 MongoDB（文档名称、大小、内容、上传时间）。
+     * 在独立线程中按格式解析文档（标题 / 段落 / 表格 / 列表项）并写入 MongoDB。
      */
     private void persistDocumentAsync(MultipartFile file,
                                       String filename,
@@ -113,19 +114,25 @@ public class DocumentStorageService {
     private void storeDocumentRecord(byte[] bytes, String name, long size, String objectName,
                                      String bucket, String contentType) {
         try {
-            String content = contentExtractor.extract(bytes, name);
+            DocumentStructure structure = structureExtractor.extract(bytes, name);
             DocumentRecord record = new DocumentRecord();
             record.setName(name);
             record.setSize(size);
-            record.setContent(content);
+            record.setContent(structure.toPlainText());
+            record.setBlocks(structure.blocks());
+            record.setParser(structure.parser());
+            record.setHeadingCount((int) structure.countByType(BlockType.HEADING));
+            record.setParagraphCount((int) structure.countByType(BlockType.PARAGRAPH));
+            record.setTableCount((int) structure.countByType(BlockType.TABLE));
+            record.setListItemCount((int) structure.countByType(BlockType.LIST_ITEM));
             record.setUploadTime(LocalDateTime.now());
             record.setObjectName(objectName);
             record.setBucket(bucket);
             record.setContentType(contentType);
             documentRecordRepository.save(record);
-            log.info("文档内容已异步写入 MongoDB: name={}, chars={}", name, content.length());
+            log.info("文档结构化内容已异步写入 MongoDB: name={}, {}", name, structure.describe());
         } catch (Exception e) {
-            log.error("文档内容异步解析/入库失败: name={}", name, e);
+            log.error("文档异步结构化解析/入库失败: name={}", name, e);
         }
     }
 
